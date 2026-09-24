@@ -1,35 +1,28 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using MiniErp.Api.Dtos;
-using MiniErp.Core.Data;
+using MiniErp.Core.Models;
+using MiniErp.Core.Services;
 
 namespace MiniErp.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class ArticulosController : ControllerBase
+public class ArticulosController(ArticuloService service) : ControllerBase
 {
-    private readonly AppDbContext _db;
+    private readonly ArticuloService _service = service;
 
-    public ArticulosController(AppDbContext db) => _db = db;
-
-    // GET /api/articulos?busqueda=teclado
     [HttpGet]
     public async Task<ActionResult<List<ArticuloDto>>> Buscar([FromQuery] string? busqueda)
     {
-        var query = _db.Articulos.AsQueryable();
+        List<Articulo> lista = await _service.BuscarAsync(busqueda);
+        List<ArticuloDto> dtos = lista.Select(articulo => new ArticuloDto(
+            articulo.Id,
+            articulo.Codigo,
+            articulo.Descripcion,
+            articulo.PrecioUnitario,
+            articulo.StockActual,
+            articulo.AlicuotaIva)).ToList();
 
-        if (!string.IsNullOrWhiteSpace(busqueda))
-        {
-            var b = busqueda.ToLower();
-            query = query.Where(a => a.Codigo.ToLower().Contains(b) || a.Descripcion.ToLower().Contains(b));
-        }
-
-        var lista = await query
-            .OrderBy(a => a.Codigo)
-            .Select(a => new ArticuloDto(a.Id, a.Codigo, a.Descripcion, a.PrecioUnitario, a.StockActual, a.AlicuotaIva))
-            .ToListAsync();
-
-        return Ok(lista);
+        return Ok(dtos);
     }
 }

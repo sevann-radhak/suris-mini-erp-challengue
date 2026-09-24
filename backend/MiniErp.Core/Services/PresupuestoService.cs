@@ -31,7 +31,7 @@ public class PresupuestoService(AppDbContext db, NumeracionService numeracion)
         return new Totales(subtotal, iva, subtotal + iva);
     }
 
-    private static decimal SubtotalLinea(PresupuestoItem item)
+    public static decimal SubtotalLinea(PresupuestoItem item)
     {
         return item.Cantidad * item.PrecioUnitario * (1 - (item.DescuentoPct / 100m));
     }
@@ -64,7 +64,18 @@ public class PresupuestoService(AppDbContext db, NumeracionService numeracion)
 
     public async Task<Presupuesto> CrearAsync(int clienteId, int validezDias, List<PresupuestoItem> items)
     {
+        if (validezDias < 0)
+        {
+            throw new InvalidOperationException("La validez debe ser mayor o igual a cero.");
+        }
+
         ValidateItems(items);
+
+        bool clienteExiste = await _db.Clientes.AnyAsync(cliente => cliente.Id == clienteId);
+        if (!clienteExiste)
+        {
+            throw new InvalidOperationException($"El cliente {clienteId} no existe.");
+        }
 
         foreach (PresupuestoItem item in items)
         {
@@ -114,10 +125,12 @@ public class PresupuestoService(AppDbContext db, NumeracionService numeracion)
     public async Task EliminarAsync(int id)
     {
         Presupuesto? presupuesto = await _db.Presupuestos.FindAsync(id);
-        if (presupuesto is not null)
+        if (presupuesto is null)
         {
-            _ = _db.Presupuestos.Remove(presupuesto);
-            _ = await _db.SaveChangesAsync();
+            throw new NotFoundException("El presupuesto no existe.");
         }
+
+        _ = _db.Presupuestos.Remove(presupuesto);
+        _ = await _db.SaveChangesAsync();
     }
 }

@@ -7,31 +7,30 @@ namespace MiniErp.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class PresupuestosController : ControllerBase
+public class PresupuestosController(PresupuestoService service) : ControllerBase
 {
-    private readonly PresupuestoService _service;
-
-    public PresupuestosController(PresupuestoService service) => _service = service;
+    private readonly PresupuestoService _service = service;
 
     [HttpGet]
     public async Task<ActionResult<List<PresupuestoDto>>> Listar()
     {
-        var lista = await _service.ListarAsync();
+        List<Presupuesto> lista = await _service.ListarAsync();
         return Ok(lista.Select(MapToDto).ToList());
     }
 
     [HttpGet("{id:int}")]
     public async Task<ActionResult<PresupuestoDto>> Obtener(int id)
     {
-        var presupuesto = await _service.ObtenerAsync(id);
-        if (presupuesto is null) return NotFound();
-        return Ok(MapToDto(presupuesto));
+        Presupuesto? presupuesto = await _service.ObtenerAsync(id);
+        return presupuesto is null
+            ? (ActionResult<PresupuestoDto>)NotFound(new { error = "El presupuesto no existe." })
+            : (ActionResult<PresupuestoDto>)Ok(MapToDto(presupuesto));
     }
 
     [HttpPost]
     public async Task<ActionResult<PresupuestoDto>> Crear([FromBody] CrearPresupuestoRequest request)
     {
-        var items = request.Items.Select(i => new PresupuestoItem
+        List<PresupuestoItem> items = request.Items.Select(i => new PresupuestoItem
         {
             ArticuloId = i.ArticuloId,
             Cantidad = i.Cantidad,
@@ -40,9 +39,13 @@ public class PresupuestosController : ControllerBase
 
         try
         {
-            var creado = await _service.CrearAsync(request.ClienteId, request.ValidezDias, items);
-            var completo = await _service.ObtenerAsync(creado.Id);
+            Presupuesto creado = await _service.CrearAsync(request.ClienteId, request.ValidezDias, items);
+            Presupuesto? completo = await _service.ObtenerAsync(creado.Id);
             return Ok(MapToDto(completo!));
+        }
+        catch (NotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
         }
         catch (InvalidOperationException ex)
         {
@@ -53,15 +56,22 @@ public class PresupuestosController : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Eliminar(int id)
     {
-        await _service.EliminarAsync(id);
-        return NoContent();
+        try
+        {
+            await _service.EliminarAsync(id);
+            return NoContent();
+        }
+        catch (NotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
     }
 
     private PresupuestoDto MapToDto(Presupuesto p)
     {
-        var totales = PresupuestoService.CalcularTotales(p);
+        Totales totales = PresupuestoService.CalcularTotales(p);
 
-        var items = p.Items.Select(i => new PresupuestoItemDto(
+        List<PresupuestoItemDto> items = p.Items.Select(i => new PresupuestoItemDto(
             i.ArticuloId,
             i.Articulo?.Codigo ?? "",
             i.Articulo?.Descripcion ?? "",
@@ -69,7 +79,7 @@ public class PresupuestosController : ControllerBase
             i.PrecioUnitario,
             i.DescuentoPct,
             i.AlicuotaIva,
-            i.Cantidad * i.PrecioUnitario * (1 - i.DescuentoPct / 100m)
+            PresupuestoService.SubtotalLinea(i)
         )).ToList();
 
         return new PresupuestoDto(

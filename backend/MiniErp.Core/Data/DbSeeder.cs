@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using MiniErp.Core.Models;
 
 namespace MiniErp.Core.Data;
@@ -6,8 +7,15 @@ public static class DbSeeder
 {
     public static void Seed(AppDbContext db)
     {
-        db.Database.EnsureCreated();
-        if (db.Articulos.Any()) return;
+        _ = db.Database.EnsureCreated();
+        _ = db.Database.ExecuteSqlRaw(
+            "CREATE UNIQUE INDEX IF NOT EXISTS IX_Presupuestos_Numero ON Presupuestos (Numero);");
+        _ = db.Database.ExecuteSqlRaw(
+            "CREATE UNIQUE INDEX IF NOT EXISTS IX_Facturas_Numero ON Facturas (Numero);");
+        if (db.Articulos.Any())
+        {
+            return;
+        }
 
         db.Clientes.AddRange(
             new Cliente { RazonSocial = "Distribuidora del Sur S.A.", Cuit = "30-71234567-9", CondicionIva = CondicionIva.ResponsableInscripto },
@@ -24,6 +32,6 @@ public static class DbSeeder
             new Articulo { Codigo = "ART-006", Descripcion = "Auriculares", PrecioUnitario = 27000m, StockActual = 3, AlicuotaIva = 21m }
         );
 
-        db.SaveChanges();
+        _ = db.SaveChanges();
     }
 }

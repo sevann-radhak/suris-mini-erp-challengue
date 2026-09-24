@@ -1,47 +1,49 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using MiniErp.Api.Dtos;
-using MiniErp.Core.Data;
+using MiniErp.Core.Models;
 using MiniErp.Core.Services;
 
 namespace MiniErp.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class FacturasController : ControllerBase
+public class FacturasController(FacturacionService facturacion) : ControllerBase
 {
-    private readonly FacturacionService _facturacion;
-    private readonly AppDbContext _db;
-
-    public FacturasController(FacturacionService facturacion, AppDbContext db)
-    {
-        _facturacion = facturacion;
-        _db = db;
-    }
+    private readonly FacturacionService _facturacion = facturacion;
 
     [HttpGet]
     public async Task<ActionResult<List<FacturaDto>>> Listar()
     {
-        var lista = await _db.Facturas
-            .OrderByDescending(f => f.Numero)
-            .Select(f => new FacturaDto(f.Id, f.Numero, f.Fecha, f.PresupuestoId, f.Subtotal, f.Iva, f.Total))
-            .ToListAsync();
-
-        return Ok(lista);
+        List<Factura> lista = await _facturacion.ListarAsync();
+        return Ok(lista.Select(Map).ToList());
     }
 
-    // POST /api/facturas/facturar/5
     [HttpPost("facturar/{presupuestoId:int}")]
     public async Task<ActionResult<FacturaDto>> Facturar(int presupuestoId)
     {
         try
         {
-            var f = await _facturacion.FacturarAsync(presupuestoId);
-            return Ok(new FacturaDto(f.Id, f.Numero, f.Fecha, f.PresupuestoId, f.Subtotal, f.Iva, f.Total));
+            Factura factura = await _facturacion.FacturarAsync(presupuestoId);
+            return Ok(Map(factura));
+        }
+        catch (NotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
         }
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { error = ex.Message });
         }
+    }
+
+    private static FacturaDto Map(Factura factura)
+    {
+        return new FacturaDto(factura.Id, 
+            factura.Numero, 
+            factura.Fecha, 
+            factura.PresupuestoId, 
+            factura.Subtotal, 
+            factura.Iva, 
+            factura.Total);
     }
 }

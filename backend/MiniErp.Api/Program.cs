@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using MiniErp.Core.Data;
 using MiniErp.Core.Services;
 
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Default") ?? "Data Source=minierp.db"));
@@ -10,6 +10,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<NumeracionService>();
 builder.Services.AddScoped<PresupuestoService>();
 builder.Services.AddScoped<FacturacionService>();
+builder.Services.AddScoped<ArticuloService>();
+builder.Services.AddScoped<ClienteService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -23,12 +25,12 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod());
 });
 
-var app = builder.Build();
+WebApplication app = builder.Build();
 
 // Crear y seedear la base al arrancar.
-using (var scope = app.Services.CreateScope())
+using (IServiceScope scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     DbSeeder.Seed(db);
 }
 

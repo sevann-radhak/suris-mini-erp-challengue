@@ -81,7 +81,7 @@ public class PresupuestoService(AppDbContext db, NumeracionService numeracion)
             Numero = await _numeracion.ProximoNumeroPresupuestoAsync(),
             Fecha = DateTime.UtcNow,
             ClienteId = clienteId,
-            Estado = EstadoPresupuesto.Borrador,
+            Estado = EstadoPresupuesto.Aprobado,
             ValidezDias = validezDias,
             Items = items
         };

@@ -23,7 +23,7 @@ Full matrix: `docs/phases/phase-00-baseline-results.md`.
 
 
 
-1. **(B2: observed)** List empty after create while GET by id works, pending fix in Phase 02.
+1. **(B2: fixed)** Create set `Borrador` and `ListarAsync` excluded `Borrador`, so GET list was empty after POST. Create now sets `Aprobado` (option A). The list filter stays, so drafts are hidden and a new presupuesto shows up and can be invoiced. `Rechazado` is still listed.
 2. **(B1: fixed)** `CalcularTotales` applied a flat 21% on the summed subtotal (`subtotal * 0.21m`), so mixed rates were wrong (mixed test: expected IVA 231, actual 252). IVA is now calculated per line from `AlicuotaIva`, rounded to 2 decimals with `MidpointRounding.AwayFromZero`, then summed. Line subtotals stay unrounded before the sum. Discount still applies before IVA.
 3. **(B4/B5: tests)** Facturar allows insufficient stock and double invoice, pending fix in Phase 03.
 4. **(B3: fixed)** `ProximoNumeroPresupuestoAsync` used `Count+1`, so a delete reused a number. It now uses `Max(Numero)+1`, same as facturas. Two concurrent creates could still race on SQLite; a sequence or row lock is out of scope for this challenge.

@@ -31,11 +31,26 @@ public class FacturacionService
         if (presupuesto.Estado == EstadoPresupuesto.Facturado)
             throw new InvalidOperationException("El presupuesto ya fue facturado.");
 
+        var demandaPorArticulo = new Dictionary<int, (Articulo Articulo, int Cantidad)>();
         foreach (var item in presupuesto.Items)
         {
-            var articulo = await _db.Articulos.FirstAsync(a => a.Id == item.ArticuloId);
-            articulo.StockActual -= item.Cantidad;
+            if (!demandaPorArticulo.TryGetValue(item.ArticuloId, out var demanda))
+            {
+                var articulo = await _db.Articulos.FirstAsync(a => a.Id == item.ArticuloId);
+                demanda = (articulo, 0);
+            }
+
+            demandaPorArticulo[item.ArticuloId] = (demanda.Articulo, demanda.Cantidad + item.Cantidad);
         }
+
+        foreach (var (articulo, cantidad) in demandaPorArticulo.Values)
+        {
+            if (articulo.StockActual < cantidad)
+                throw new InvalidOperationException($"No hay stock suficiente para el articulo {articulo.Codigo}.");
+        }
+
+        foreach (var (articulo, cantidad) in demandaPorArticulo.Values)
+            articulo.StockActual -= cantidad;
 
         var totales = PresupuestoService.CalcularTotales(presupuesto);
 

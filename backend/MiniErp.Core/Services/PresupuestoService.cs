@@ -42,8 +42,25 @@ public class PresupuestoService
     private static decimal IvaLinea(decimal subtotalLinea, decimal alicuotaIva)
         => Math.Round(subtotalLinea * alicuotaIva / 100m, 2, MidpointRounding.AwayFromZero);
 
+    private static void ValidateItems(List<PresupuestoItem>? items)
+    {
+        if (items is null || items.Count == 0)
+            throw new InvalidOperationException("El presupuesto debe tener al menos un item.");
+
+        foreach (var item in items)
+        {
+            if (item.Cantidad <= 0)
+                throw new InvalidOperationException("La cantidad debe ser mayor a cero.");
+
+            if (item.DescuentoPct < 0m || item.DescuentoPct > 100m)
+                throw new InvalidOperationException("El descuento debe estar entre 0 y 100.");
+        }
+    }
+
     public async Task<Presupuesto> CrearAsync(int clienteId, int validezDias, List<PresupuestoItem> items)
     {
+        ValidateItems(items);
+
         foreach (var item in items)
         {
             var articulo = await _db.Articulos.FirstOrDefaultAsync(a => a.Id == item.ArticuloId)

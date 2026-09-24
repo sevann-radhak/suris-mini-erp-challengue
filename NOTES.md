@@ -27,7 +27,7 @@ Full matrix: `docs/phases/phase-00-baseline-results.md`.
 2. **(B1 — fixed)** `CalcularTotales` applied a flat 21% on the summed subtotal (`subtotal * 0.21m`), so mixed rates were wrong (mixed test: expected IVA 231, actual 252). IVA is now calculated per line from `AlicuotaIva`, rounded to 2 decimals with `MidpointRounding.AwayFromZero`, then summed. Line subtotals stay unrounded before the sum. Discount still applies before IVA.  
 3. **(B4/B5 — tests)** Facturar allows insufficient stock and double invoice — pending fix in Phase 03.  
 4. **(B3 — code review)** Numeración `Count+1` — pending fix in Phase 02.  
-5. **(B6 — code review)** No validation on cantidad/descuento — pending fix in Phase 01.
+5. **(B6 — fixed)** `CrearAsync` snapshotted price and alícuota and saved without checking line inputs. It now rejects an empty item list, `cantidad <= 0`, and `descuentoPct` outside `[0, 100]` with `InvalidOperationException` (API returns 400 `{ error }`). Checked via API: `cantidad: 0` → "La cantidad debe ser mayor a cero."; `descuentoPct: 150` → "El descuento debe estar entre 0 y 100." Mixed create ART-001 + ART-004 → subtotal 39500, iva 7822.50, total 47322.50.
 
 ## Decisiones del cliente React
 

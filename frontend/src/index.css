@@ -361,22 +361,74 @@ tr:last-child td {
   color: rgb(255 255 255 / 0.7);
 }
 
-.banner,
-.notice {
+.banner {
   border-radius: 0.7rem;
   padding: 0.7rem 0.85rem;
   margin: 0 0 0.8rem;
   font-weight: 500;
-}
-
-.banner {
   background: var(--color-danger-bg);
   color: var(--color-danger);
 }
 
-.notice {
+.toaster {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 40;
+  width: min(22rem, calc(100% - 2rem));
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.85rem 0.7rem 0.85rem 1rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.85rem;
+  background: var(--color-paper);
+  box-shadow: 0 12px 32px rgb(16 35 58 / 0.16);
+  animation: toast-in 180ms ease-out;
+}
+
+.toast p {
+  flex: 1;
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.toast-ok {
+  border-color: #bbf7d0;
   background: var(--color-ok-bg);
   color: var(--color-ok);
+}
+
+.toast-danger {
+  border-color: #fecdd3;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.toast-close {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 0 0.15rem;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.toast-close:hover {
+  opacity: 1;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.4rem);
+  }
 }
 
 .empty,
@@ -399,9 +451,11 @@ tr:last-child td {
   100% { background-position: -100% 0; }
 }
 
-.actions {
+.actions,
+.form-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 0.5rem;
 }
 
 .pager {
@@ -457,8 +511,12 @@ table {
 }
 
 .field input,
-.field select,
+.field select {
+  width: 100%;
+}
+
 .search .field {
+  flex: 1;
   width: 100%;
 }
 

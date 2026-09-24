@@ -1,42 +1,64 @@
 import { useCallback, useEffect, useState } from 'react'
-import { api } from '../api/client'
+import { api, errorMessage } from '../api/client'
 import type { Presupuesto } from '../api/types'
 import { PresupuestoForm } from '../components/PresupuestoForm'
 import { PresupuestoList } from '../components/PresupuestoList'
+import { Toast } from '../components/Toast'
 import { estaVencido, money } from '../ui/format'
+
+type ToastMessage = { id: number; text: string; tone: 'ok' | 'danger' }
+
+function fetchPresupuestos() {
+  return api<Presupuesto[]>('/api/presupuestos')
+}
 
 export function PresupuestosPage() {
   const [items, setItems] = useState<Presupuesto[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [notice, setNotice] = useState<string | null>(null)
+  const [toast, setToast] = useState<ToastMessage | null>(null)
   const [busyId, setBusyId] = useState<number | null>(null)
+
+  const dismiss = useCallback(() => setToast(null), [])
+
+  const notify = useCallback((text: string, tone: ToastMessage['tone']) => {
+    setToast({ id: Date.now(), text, tone })
+  }, [])
 
   const load = useCallback(() => {
     setLoading(true)
-    setError(null)
-    api<Presupuesto[]>('/api/presupuestos')
+    fetchPresupuestos()
       .then(setItems)
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'No se pudo cargar la lista.')
+        notify(errorMessage(err, 'No se pudo cargar la lista.'), 'danger')
       })
       .finally(() => setLoading(false))
-  }, [])
+  }, [notify])
 
   useEffect(() => {
-    load()
-  }, [load])
+    let cancelled = false
+    fetchPresupuestos()
+      .then((data) => {
+        if (!cancelled) setItems(data)
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) notify(errorMessage(err, 'No se pudo cargar la lista.'), 'danger')
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [notify])
 
   async function facturar(id: number) {
     setBusyId(id)
-    setError(null)
-    setNotice(null)
     try {
       await api(`/api/facturas/facturar/${id}`, { method: 'POST' })
-      setNotice('Presupuesto facturado.')
+      notify('Presupuesto facturado.', 'ok')
       load()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'No se pudo facturar.')
+      notify(errorMessage(err, 'No se pudo facturar.'), 'danger')
     } finally {
       setBusyId(null)
     }
@@ -71,9 +93,13 @@ export function PresupuestosPage() {
           <strong>{money.format(montoPendiente)}</strong>
         </div>
       </section>
-      {error && <p className="banner">{error}</p>}
-      {notice && <p className="notice">{notice}</p>}
-      <PresupuestoForm onCreated={load} />
+      {toast && <Toast key={toast.id} message={toast.text} tone={toast.tone} onClose={dismiss} />}
+      <PresupuestoForm
+        onCreated={() => {
+          notify('Presupuesto creado.', 'ok')
+          load()
+        }}
+      />
       <section className="card">
         <div className="card-head">
           <div>

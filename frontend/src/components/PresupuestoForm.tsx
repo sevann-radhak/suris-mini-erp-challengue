@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { api } from '../api/client'
+import { api, errorMessage } from '../api/client'
 import type { Articulo, Cliente, CrearPresupuesto } from '../api/types'
 import { calcularTotales, subtotalLinea } from '../domain/totales'
 import { money } from '../ui/format'
@@ -18,13 +18,13 @@ interface Linea {
 
 function NumberField({
   value,
-  min,
-  max,
+  label,
+  integer,
   onChange,
 }: {
   value: number
-  min: number
-  max?: number
+  label?: string
+  integer?: boolean
   onChange: (value: number) => void
 }) {
   const [draft, setDraft] = useState<string | null>(null)
@@ -33,6 +33,7 @@ function NumberField({
     <input
       type="text"
       inputMode="decimal"
+      aria-label={label}
       value={draft ?? String(value)}
       onFocus={(event) => {
         const input = event.currentTarget
@@ -43,11 +44,44 @@ function NumberField({
       onBlur={() => setDraft(null)}
       onChange={(event) => {
         const raw = event.target.value.replace(',', '.')
-        if (raw !== '' && !/^\d{0,6}(\.\d{0,2})?$/.test(raw)) return
+        const pattern = integer ? /^\d{0,6}$/ : /^\d{0,6}(\.\d{0,2})?$/
+        if (raw !== '' && !pattern.test(raw)) return
         setDraft(raw)
         if (raw === '' || raw === '.') return
+        onChange(Number(raw))
+      }}
+    />
+  )
+}
+
+function DiscountField({
+  value,
+  label,
+  onChange,
+}: {
+  value: number
+  label: string
+  onChange: (value: number) => void
+}) {
+  const [draft, setDraft] = useState<string | null>(null)
+
+  return (
+    <input
+      type="number"
+      min={0}
+      max={100}
+      step="any"
+      aria-label={label}
+      value={draft ?? String(value)}
+      onFocus={() => setDraft(String(value))}
+      onBlur={() => setDraft(null)}
+      onChange={(event) => {
+        const raw = event.target.value.replace(',', '.')
+        if (raw !== '' && !/^-?\d{0,6}(\.\d{0,2})?$/.test(raw)) return
+        setDraft(raw)
+        if (raw === '' || raw === '-' || raw === '.') return
         const next = Number(raw)
-        if (next < min || (max !== undefined && next > max)) return
+        if (Number.isNaN(next)) return
         onChange(next)
       }}
     />
@@ -65,6 +99,17 @@ export function PresupuestoForm({ onCreated }: Props) {
   const [lineas, setLineas] = useState<Linea[]>([])
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [intentoCrear, setIntentoCrear] = useState(false)
+  const [formVersion, setFormVersion] = useState(0)
+
+  function resetForm() {
+    setClienteId('')
+    setValidezDias(15)
+    setLineas([])
+    setError(null)
+    setIntentoCrear(false)
+    setFormVersion((current) => current + 1)
+  }
 
   useEffect(() => {
     api<Cliente[]>('/api/clientes')
@@ -72,7 +117,7 @@ export function PresupuestoForm({ onCreated }: Props) {
         setClientes(data)
       })
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : 'No se pudieron cargar los clientes.')
+        setError(errorMessage(err, 'No se pudieron cargar los clientes.'))
       })
   }, [])
 
@@ -80,7 +125,7 @@ export function PresupuestoForm({ onCreated }: Props) {
     setLineas((current) => [
       ...current,
       {
-        key: `${articulo.id}-${current.length}`,
+        key: `${articulo.id}-${crypto.randomUUID()}`,
         articuloId: articulo.id,
         codigo: articulo.codigo,
         descripcion: articulo.descripcion,
@@ -108,6 +153,8 @@ export function PresupuestoForm({ onCreated }: Props) {
 
   async function submit(event: FormEvent) {
     event.preventDefault()
+    setIntentoCrear(true)
+    if (faltantes.length > 0) return
     setError(null)
     const body: CrearPresupuesto = {
       clienteId: Number(clienteId),
@@ -121,17 +168,17 @@ export function PresupuestoForm({ onCreated }: Props) {
     setSaving(true)
     try {
       await api('/api/presupuestos', { method: 'POST', body: JSON.stringify(body) })
-      setLineas([])
+      resetForm()
       onCreated()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'No se pudo crear el presupuesto.')
+      setError(errorMessage(err, 'No se pudo crear el presupuesto.'))
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <form className="card" onSubmit={(event) => void submit(event)}>
+    <form className="card" noValidate onSubmit={(event) => void submit(event)}>
       <div className="card-head">
         <div>
           <h2>Nuevo presupuesto</h2>
@@ -143,7 +190,7 @@ export function PresupuestoForm({ onCreated }: Props) {
       <div className="fields">
         <label className="field">
           Cliente
-          <select value={clienteId} onChange={(event) => setClienteId(event.target.value)} required>
+          <select value={clienteId} onChange={(event) => setClienteId(event.target.value)}>
             <option value="">Seleccioná un cliente</option>
             {clientes.map((cliente) => (
               <option key={cliente.id} value={cliente.id}>
@@ -154,14 +201,14 @@ export function PresupuestoForm({ onCreated }: Props) {
         </label>
         <label className="field">
           Validez (días)
-          <NumberField value={validezDias} min={0} onChange={setValidezDias} />
+          <NumberField key={formVersion} integer value={validezDias} onChange={setValidezDias} />
         </label>
       </div>
       {validezDias <= 0 && (
         <p className="hint">Con 0 días el presupuesto nace vencido y no se puede facturar.</p>
       )}
       <p className="step">2 · Artículos</p>
-      <ArticuloSearch onAdd={addArticulo} />
+      <ArticuloSearch key={formVersion} onAdd={addArticulo} />
       {lineas.length === 0 && <p className="hint">Buscá un artículo y tocá el resultado para agregarlo.</p>}
       {lineas.length > 0 && (
         <div className="table-wrap">
@@ -188,16 +235,16 @@ export function PresupuestoForm({ onCreated }: Props) {
                   <td className="num">{linea.alicuotaIva}%</td>
                   <td>
                     <NumberField
+                      label={`Cantidad de ${linea.codigo}`}
+                      integer
                       value={linea.cantidad}
-                      min={1}
                       onChange={(cantidad) => updateLinea(linea.key, { cantidad })}
                     />
                   </td>
                   <td>
-                    <NumberField
+                    <DiscountField
+                      label={`Descuento de ${linea.codigo}`}
                       value={linea.descuentoPct}
-                      min={0}
-                      max={100}
                       onChange={(descuentoPct) => updateLinea(linea.key, { descuentoPct })}
                     />
                   </td>
@@ -232,16 +279,21 @@ export function PresupuestoForm({ onCreated }: Props) {
           <strong>{money.format(totales.total)}</strong>
         </div>
       </div>
-      {faltantes.length > 0 && (
+      {intentoCrear && faltantes.length > 0 && (
         <ul className="checks">
           {faltantes.map((item) => (
             <li key={item}>{item}</li>
           ))}
         </ul>
       )}
-      <button type="submit" className="btn btn-primary" disabled={saving || faltantes.length > 0}>
-        {saving ? 'Guardando…' : 'Crear presupuesto'}
-      </button>
+      <div className="form-actions">
+        <button type="button" className="btn btn-ghost" disabled={saving} onClick={resetForm}>
+          Limpiar
+        </button>
+        <button type="submit" className="btn btn-primary" disabled={saving}>
+          {saving ? 'Guardando…' : 'Crear presupuesto'}
+        </button>
+      </div>
     </form>
   )
 }

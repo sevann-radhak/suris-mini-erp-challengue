@@ -23,7 +23,7 @@ public class PresupuestoService(AppDbContext db, NumeracionService numeracion)
 
         foreach (PresupuestoItem item in presupuesto.Items)
         {
-            var subtotalLinea = SubtotalLinea(item);
+            decimal subtotalLinea = SubtotalLinea(item);
             subtotal += subtotalLinea;
             iva += IvaLinea(subtotalLinea, item.AlicuotaIva);
         }

@@ -4,57 +4,62 @@ using MiniErp.Core.Models;
 
 namespace MiniErp.Core.Services;
 
-public class FacturacionService
+public class FacturacionService(AppDbContext db, 
+    PresupuestoService presupuestos, 
+    NumeracionService numeracion)
 {
-    private readonly AppDbContext _db;
-    private readonly PresupuestoService _presupuestos;
-    private readonly NumeracionService _numeracion;
-
-    public FacturacionService(AppDbContext db, PresupuestoService presupuestos, NumeracionService numeracion)
-    {
-        _db = db;
-        _presupuestos = presupuestos;
-        _numeracion = numeracion;
-    }
+    private readonly AppDbContext _db = db;
+    private readonly PresupuestoService _presupuestos = presupuestos;
+    private readonly NumeracionService _numeracion = numeracion;
 
     public async Task<Factura> FacturarAsync(int presupuestoId)
     {
-        var presupuesto = await _db.Presupuestos
+        Presupuesto presupuesto = await _db.Presupuestos
             .Include(p => p.Items)
             .FirstOrDefaultAsync(p => p.Id == presupuestoId)
             ?? throw new InvalidOperationException("El presupuesto no existe.");
 
-        var vencimiento = presupuesto.Fecha.AddDays(presupuesto.ValidezDias);
+        DateTime vencimiento = presupuesto.Fecha.AddDays(presupuesto.ValidezDias);
+        
         if (DateTime.UtcNow > vencimiento)
+        {
             throw new InvalidOperationException("El presupuesto esta vencido y no se puede facturar.");
+        }
 
         if (presupuesto.Estado == EstadoPresupuesto.Facturado)
-            throw new InvalidOperationException("El presupuesto ya fue facturado.");
-
-        var demandaPorArticulo = new Dictionary<int, (Articulo Articulo, int Cantidad)>();
-        foreach (var item in presupuesto.Items)
         {
-            if (!demandaPorArticulo.TryGetValue(item.ArticuloId, out var demanda))
+            throw new InvalidOperationException("El presupuesto ya fue facturado.");
+        }
+
+        Dictionary<int, (Articulo Articulo, int Cantidad)> demandaPorArticulo = new();
+        
+        foreach (PresupuestoItem item in presupuesto.Items)
+        {
+            if (!demandaPorArticulo.TryGetValue(item.ArticuloId, out (Articulo Articulo, int Cantidad) demanda))
             {
-                var articulo = await _db.Articulos.FirstAsync(a => a.Id == item.ArticuloId);
+                Articulo articulo = await _db.Articulos.FirstAsync(a => a.Id == item.ArticuloId);
                 demanda = (articulo, 0);
             }
 
             demandaPorArticulo[item.ArticuloId] = (demanda.Articulo, demanda.Cantidad + item.Cantidad);
         }
 
-        foreach (var (articulo, cantidad) in demandaPorArticulo.Values)
+        foreach ((Articulo? articulo, int cantidad) in demandaPorArticulo.Values)
         {
             if (articulo.StockActual < cantidad)
+            {
                 throw new InvalidOperationException($"No hay stock suficiente para el articulo {articulo.Codigo}.");
+            }
         }
 
-        foreach (var (articulo, cantidad) in demandaPorArticulo.Values)
+        foreach ((Articulo? articulo, int cantidad) in demandaPorArticulo.Values)
+        {
             articulo.StockActual -= cantidad;
+        }
 
-        var totales = PresupuestoService.CalcularTotales(presupuesto);
+        Totales totales = PresupuestoService.CalcularTotales(presupuesto);
 
-        var factura = new Factura
+        Factura factura = new()
         {
             Numero = await _numeracion.ProximoNumeroFacturaAsync(),
             Fecha = DateTime.UtcNow,
@@ -65,8 +70,9 @@ public class FacturacionService
         };
 
         presupuesto.Estado = EstadoPresupuesto.Facturado;
-        _db.Facturas.Add(factura);
-        await _db.SaveChangesAsync();
+        _ = _db.Facturas.Add(factura);
+        _ = await _db.SaveChangesAsync();
+       
         return factura;
     }
 }

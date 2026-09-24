@@ -34,7 +34,7 @@ public class FacturacionService
             articulo.StockActual -= item.Cantidad;
         }
 
-        var totales = _presupuestos.CalcularTotales(presupuesto);
+        var totales = PresupuestoService.CalcularTotales(presupuesto);
 
         var factura = new Factura
         {

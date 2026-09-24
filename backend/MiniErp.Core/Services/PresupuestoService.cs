@@ -6,27 +6,22 @@ namespace MiniErp.Core.Services;
 
 public record Totales(decimal Subtotal, decimal Iva, decimal Total);
 
-public class PresupuestoService
+public class PresupuestoService(AppDbContext db, NumeracionService numeracion)
 {
-    private readonly AppDbContext _db;
-    private readonly NumeracionService _numeracion;
-
-    public PresupuestoService(AppDbContext db, NumeracionService numeracion)
-    {
-        _db = db;
-        _numeracion = numeracion;
-    }
+    private readonly AppDbContext _db = db;
+    private readonly NumeracionService _numeracion = numeracion;
 
     /// <summary>
     /// Calcula subtotal, IVA y total de un presupuesto. El descuento se aplica
     /// por linea antes del IVA. El IVA se calcula por linea segun AlicuotaIva
     /// y se redondea a 2 decimales antes de sumar.
     /// </summary>
-    public Totales CalcularTotales(Presupuesto presupuesto)
+    public static Totales CalcularTotales(Presupuesto presupuesto)
     {
         decimal subtotal = 0m;
         decimal iva = 0m;
-        foreach (var item in presupuesto.Items)
+
+        foreach (PresupuestoItem item in presupuesto.Items)
         {
             var subtotalLinea = SubtotalLinea(item);
             subtotal += subtotalLinea;
@@ -37,23 +32,33 @@ public class PresupuestoService
     }
 
     private static decimal SubtotalLinea(PresupuestoItem item)
-        => item.Cantidad * item.PrecioUnitario * (1 - item.DescuentoPct / 100m);
+    {
+        return item.Cantidad * item.PrecioUnitario * (1 - (item.DescuentoPct / 100m));
+    }
 
     private static decimal IvaLinea(decimal subtotalLinea, decimal alicuotaIva)
-        => Math.Round(subtotalLinea * alicuotaIva / 100m, 2, MidpointRounding.AwayFromZero);
+    {
+        return Math.Round(subtotalLinea * alicuotaIva / 100m, 2, MidpointRounding.AwayFromZero);
+    }
 
     private static void ValidateItems(List<PresupuestoItem>? items)
     {
         if (items is null || items.Count == 0)
+        {
             throw new InvalidOperationException("El presupuesto debe tener al menos un item.");
+        }
 
-        foreach (var item in items)
+        foreach (PresupuestoItem item in items)
         {
             if (item.Cantidad <= 0)
+            {
                 throw new InvalidOperationException("La cantidad debe ser mayor a cero.");
+            }
 
-            if (item.DescuentoPct < 0m || item.DescuentoPct > 100m)
+            if (item.DescuentoPct is < 0m or > 100m)
+            {
                 throw new InvalidOperationException("El descuento debe estar entre 0 y 100.");
+            }
         }
     }
 
@@ -61,9 +66,9 @@ public class PresupuestoService
     {
         ValidateItems(items);
 
-        foreach (var item in items)
+        foreach (PresupuestoItem item in items)
         {
-            var articulo = await _db.Articulos.FirstOrDefaultAsync(a => a.Id == item.ArticuloId)
+            Articulo articulo = await _db.Articulos.FirstOrDefaultAsync(a => a.Id == item.ArticuloId)
                 ?? throw new InvalidOperationException($"El articulo {item.ArticuloId} no existe.");
 
             // Tomamos precio y alicuota actuales del articulo como snapshot.
@@ -71,7 +76,7 @@ public class PresupuestoService
             item.AlicuotaIva = articulo.AlicuotaIva;
         }
 
-        var presupuesto = new Presupuesto
+        Presupuesto presupuesto = new()
         {
             Numero = await _numeracion.ProximoNumeroPresupuestoAsync(),
             Fecha = DateTime.UtcNow,
@@ -81,8 +86,8 @@ public class PresupuestoService
             Items = items
         };
 
-        _db.Presupuestos.Add(presupuesto);
-        await _db.SaveChangesAsync();
+        _ = _db.Presupuestos.Add(presupuesto);
+        _ = await _db.SaveChangesAsync();
         return presupuesto;
     }
 
@@ -108,11 +113,11 @@ public class PresupuestoService
 
     public async Task EliminarAsync(int id)
     {
-        var presupuesto = await _db.Presupuestos.FindAsync(id);
+        Presupuesto? presupuesto = await _db.Presupuestos.FindAsync(id);
         if (presupuesto is not null)
         {
-            _db.Presupuestos.Remove(presupuesto);
-            await _db.SaveChangesAsync();
+            _ = _db.Presupuestos.Remove(presupuesto);
+            _ = await _db.SaveChangesAsync();
         }
     }
 }

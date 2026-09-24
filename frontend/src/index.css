@@ -37,11 +37,20 @@ td:nth-child(n + 5) {
   text-align: right;
 }
 
+.banner,
+.notice {
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+}
+
 .banner {
   background: #fee2e2;
   color: #991b1b;
-  padding: 0.6rem 0.8rem;
-  border-radius: 6px;
+}
+
+.notice {
+  background: #dcfce7;
+  color: #166534;
 }
 
 form,

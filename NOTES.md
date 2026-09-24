@@ -34,6 +34,10 @@ Full matrix: `docs/phases/phase-00-baseline-results.md`.
 
 ## Decisiones del cliente React
 
+Cliente en `frontend/`: Vite + React + TypeScript, `fetch` nativo, sin estado global. La URL de la API sale de `VITE_API_BASE_URL` (`http://localhost:5080`).
+
+Los totales en vivo viven en `frontend/src/domain/totales.ts` y copian la regla del backend: subtotal de línea `cantidad × precio × (1 − descuento/100)` sin redondear; IVA de línea `round(subtotal × alícuota/100, 2)` con mitad alejándose de cero; después se suman subtotal, IVA y total. El valor que se guarda lo calcula el backend al crear.
+
 
 
 ## Qué hice y qué dejé afuera

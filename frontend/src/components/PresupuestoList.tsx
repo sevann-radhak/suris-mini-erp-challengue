@@ -12,9 +12,11 @@ function formatDate(value: string) {
 interface Props {
   items: Presupuesto[]
   loading: boolean
+  busyId: number | null
+  onFacturar: (id: number) => void
 }
 
-export function PresupuestoList({ items, loading }: Props) {
+export function PresupuestoList({ items, loading, busyId, onFacturar }: Props) {
   if (loading) return <p>Cargando presupuestos…</p>
   if (items.length === 0) return <p>No hay presupuestos para mostrar.</p>
 
@@ -29,6 +31,7 @@ export function PresupuestoList({ items, loading }: Props) {
           <th>Subtotal</th>
           <th>IVA</th>
           <th>Total</th>
+          <th>Acciones</th>
         </tr>
       </thead>
       <tbody>
@@ -41,6 +44,15 @@ export function PresupuestoList({ items, loading }: Props) {
             <td>{money.format(item.subtotal)}</td>
             <td>{money.format(item.iva)}</td>
             <td>{money.format(item.total)}</td>
+            <td>
+              <button
+                type="button"
+                disabled={item.estado === 'Facturado' || busyId === item.id}
+                onClick={() => onFacturar(item.id)}
+              >
+                {busyId === item.id ? 'Facturando…' : 'Facturar'}
+              </button>
+            </td>
           </tr>
         ))}
       </tbody>

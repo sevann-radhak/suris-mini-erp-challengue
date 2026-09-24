@@ -28,6 +28,9 @@ public class FacturacionService
         if (DateTime.UtcNow > vencimiento)
             throw new InvalidOperationException("El presupuesto esta vencido y no se puede facturar.");
 
+        if (presupuesto.Estado == EstadoPresupuesto.Facturado)
+            throw new InvalidOperationException("El presupuesto ya fue facturado.");
+
         foreach (var item in presupuesto.Items)
         {
             var articulo = await _db.Articulos.FirstAsync(a => a.Id == item.ArticuloId);

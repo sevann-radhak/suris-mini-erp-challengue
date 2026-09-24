@@ -88,7 +88,7 @@ public class PresupuestosController(PresupuestoService service) : ControllerBase
 
     private PresupuestoDto MapToDto(Presupuesto p)
     {
-        Totales totales = PresupuestoService.CalcularTotales(p);
+        Totales totales = _service.CalcularTotales(p);
 
         List<PresupuestoItemDto> items = p.Items.Select(i => new PresupuestoItemDto(
             i.ArticuloId,

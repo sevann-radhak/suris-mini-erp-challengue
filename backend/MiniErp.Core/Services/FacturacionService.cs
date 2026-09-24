@@ -7,6 +7,7 @@ namespace MiniErp.Core.Services;
 public class FacturacionService
 {
     private readonly AppDbContext _db;
+    private readonly PresupuestoService _presupuestos;
     private readonly NumeracionService _numeracion;
 
     public FacturacionService(AppDbContext db,
@@ -14,8 +15,8 @@ public class FacturacionService
         NumeracionService numeracion)
     {
         _db = db;
+        _presupuestos = presupuestos;
         _numeracion = numeracion;
-        _ = presupuestos;
     }
 
     public async Task<List<Factura>> ListarAsync()
@@ -69,7 +70,7 @@ public class FacturacionService
             articulo.StockActual -= demandaPorArticulo[articulo.Id];
         }
 
-        Totales totales = PresupuestoService.CalcularTotales(presupuesto);
+        Totales totales = _presupuestos.CalcularTotales(presupuesto);
 
         Factura factura = new()
         {
@@ -83,8 +84,23 @@ public class FacturacionService
 
         presupuesto.Estado = EstadoPresupuesto.Facturado;
         _ = _db.Facturas.Add(factura);
-        _ = await _db.SaveChangesAsync();
+
+        try
+        {
+            _ = await _db.SaveChangesAsync();
+        }
+        catch (DbUpdateException ex) when (EsFacturaDuplicada(ex))
+        {
+            throw new InvalidOperationException("El presupuesto ya fue facturado.", ex);
+        }
 
         return factura;
+    }
+
+    private static bool EsFacturaDuplicada(DbUpdateException exception)
+    {
+        string? message = exception.InnerException?.Message;
+        return message?.Contains("PresupuestoId", StringComparison.OrdinalIgnoreCase) == true
+            || message?.Contains("IX_Facturas_PresupuestoId", StringComparison.OrdinalIgnoreCase) == true;
     }
 }

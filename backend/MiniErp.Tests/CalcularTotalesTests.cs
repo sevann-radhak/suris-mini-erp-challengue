@@ -25,7 +25,7 @@ public class CalcularTotalesTests
             new PresupuestoItem { Cantidad = 2, PrecioUnitario = 50m, DescuentoPct = 0m, AlicuotaIva = 21m }
         );
 
-        var t = PresupuestoService.CalcularTotales(p);
+        var t = service.CalcularTotales(p);
 
         Assert.Equal(1100m, t.Subtotal);
         Assert.Equal(231m, t.Iva);
@@ -40,7 +40,7 @@ public class CalcularTotalesTests
             new PresupuestoItem { Cantidad = 10, PrecioUnitario = 100m, DescuentoPct = 10m, AlicuotaIva = 21m }
         );
 
-        var t = PresupuestoService.CalcularTotales(p);
+        var t = service.CalcularTotales(p);
 
         // 10 * 100 = 1000; -10% => 900; IVA 21% => 189; total 1089.
         Assert.Equal(900m, t.Subtotal);
@@ -57,7 +57,7 @@ public class CalcularTotalesTests
             new PresupuestoItem { Cantidad = 4, PrecioUnitario = 50m, DescuentoPct = 0m, AlicuotaIva = 10.5m }   // sub 200,  iva 21
         );
 
-        var t = PresupuestoService.CalcularTotales(p);
+        var t = service.CalcularTotales(p);
 
         Assert.Equal(1200m, t.Subtotal);
         Assert.Equal(231m, t.Iva);    // 210 + 21

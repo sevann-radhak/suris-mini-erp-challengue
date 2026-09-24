@@ -6,7 +6,7 @@ Baseline antes de corregir: `dotnet test` daba 3 passed y 3 failed (IVA mixto, f
 
 1. **IVA (arreglado).** `CalcularTotales` aplicaba 21 % fijo sobre el subtotal sumado (`subtotal * 0.21`). Con alícuotas mezcladas el test esperaba IVA 231 y devolvía 252. Ahora el IVA se calcula por línea según `AlicuotaIva`, se redondea a 2 decimales con `MidpointRounding.AwayFromZero` y recién después se suma. El subtotal de línea no se redondea antes de esa suma. El descuento sigue aplicándose antes del IVA.
 2. **Lista vacía después de crear (arreglado).** El alta guardaba `Borrador` y el listado excluía ese estado, así que el presupuesto existía por id pero no aparecía en la grilla. El alta ahora queda en `Aprobado`. El filtro de borradores se mantiene. `Rechazado` sigue listándose.
-3. **Numeración (arreglado).** El próximo número de presupuesto era `Count + 1`, así que borrar el último reutilizaba un número. Ahora es `Max(Numero) + 1`, igual que las facturas. Número de presupuesto y de factura tienen índice único: si dos altas chocan, la segunda falla en lugar de duplicar.
+3. **Numeración (arreglado).** El próximo número de presupuesto era `Count + 1`, así que borrar el último reutilizaba un número. Ahora hay una tabla `Numeraciones`: el primer número sale de `Max(Numero) + 1` y los siguientes incrementan ese contador, así que borrar el último no lo reutiliza. Número de presupuesto, número de factura y `Facturas.PresupuestoId` tienen índice único.
 4. **Stock (arreglado).** Facturar restaba stock sin mirar el disponible, y podía quedar negativo. La demanda se suma por artículo y se compara con `StockActual` antes de descontar. Un solo `SaveChanges` guarda stock, factura y estado `Facturado`.
 5. **Doble facturación (arreglado).** No se miraba el estado, así que una segunda llamada facturaba de nuevo y descontaba stock otra vez. Si ya está `Facturado`, lanza error antes de tocar el stock.
 6. **Datos inválidos (arreglado).** El alta copiaba precio y alícuota y guardaba sin validar las líneas. Ahora rechaza lista vacía, cantidad menor o igual a cero y descuento fuera de 0–100, con 400 `{ error }`. Cantidad 0 → "La cantidad debe ser mayor a cero." Descuento 150 → "El descuento debe estar entre 0 y 100." ART-001 + ART-004 sin descuento → subtotal 39500, IVA 7822.50, total 47322.50.
@@ -31,7 +31,7 @@ Después la Parte C:
 - **Reporte:** `GET /api/reportes/top-articulos?desde&hasta&top`, en la vista Ranking. Ordena por monto facturado (subtotal de línea más IVA) dentro del rango.
 - **Tests propios:** `StretchTests` cubre la copia con precio actualizado y que el ranking ignore facturas fuera de rango. No modifiqué los tests originales.
 
-Quedó afuera lo que esta consigna no pide: autenticación, paginación en el servidor y un lock de numeración además del índice único.
+Quedó afuera lo que esta consigna no pide: autenticación y paginación en el servidor.
 
 Las entidades siguen anémicas a propósito. Las reglas están en los servicios. No moví esa lógica a un agregado ni a value objects: los tests oficiales construyen `PresupuestoItem` con decimales y llaman al servicio. Cambiar el modelo ahora no mejora el comportamiento y sí arriesga esos tests.
 
@@ -50,7 +50,6 @@ Se equivocó al no limpiar el formulario después de crear, al dejar el aviso de
 - Un agregado `Presupuesto` que concentre facturar, duplicar y la validez, y un value object para el descuento (0–100, hasta dos decimales). Hoy eso está en los servicios porque el modelo público lo usan los tests.
 - Autenticación y autorización por rol.
 - Paginación en el servidor cuando la lista no entre en memoria.
-- Una secuencia para la numeración, además del índice único, para no depender del error de la base si dos altas ocurren juntas.
 - Tests de extremo a extremo del cliente y un pipeline de CI.
 - Migraciones de EF en lugar de `EnsureCreated`.
 

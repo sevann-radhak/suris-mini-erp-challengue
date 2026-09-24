@@ -16,7 +16,7 @@ public class PresupuestoService(AppDbContext db, NumeracionService numeracion)
     /// por linea antes del IVA. El IVA se calcula por linea segun AlicuotaIva
     /// y se redondea a 2 decimales antes de sumar.
     /// </summary>
-    public static Totales CalcularTotales(Presupuesto presupuesto)
+    public Totales CalcularTotales(Presupuesto presupuesto)
     {
         decimal subtotal = 0m;
         decimal iva = 0m;

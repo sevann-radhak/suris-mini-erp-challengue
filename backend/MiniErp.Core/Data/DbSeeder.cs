@@ -9,9 +9,18 @@ public static class DbSeeder
     {
         _ = db.Database.EnsureCreated();
         _ = db.Database.ExecuteSqlRaw(
+            """
+            CREATE TABLE IF NOT EXISTS "Numeraciones" (
+                "Clave" TEXT NOT NULL CONSTRAINT "PK_Numeraciones" PRIMARY KEY,
+                "UltimoNumero" INTEGER NOT NULL
+            );
+            """);
+        _ = db.Database.ExecuteSqlRaw(
             "CREATE UNIQUE INDEX IF NOT EXISTS IX_Presupuestos_Numero ON Presupuestos (Numero);");
         _ = db.Database.ExecuteSqlRaw(
             "CREATE UNIQUE INDEX IF NOT EXISTS IX_Facturas_Numero ON Facturas (Numero);");
+        _ = db.Database.ExecuteSqlRaw(
+            "CREATE UNIQUE INDEX IF NOT EXISTS IX_Facturas_PresupuestoId ON Facturas (PresupuestoId);");
         if (db.Articulos.Any())
         {
             return;

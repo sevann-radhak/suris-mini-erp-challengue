@@ -10,6 +10,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Presupuesto> Presupuestos => Set<Presupuesto>();
     public DbSet<PresupuestoItem> PresupuestoItems => Set<PresupuestoItem>();
     public DbSet<Factura> Facturas => Set<Factura>();
+    public DbSet<Numeracion> Numeraciones => Set<Numeracion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -22,6 +23,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
         _ = modelBuilder.Entity<Presupuesto>().HasIndex(p => p.Numero).IsUnique();
         _ = modelBuilder.Entity<Factura>().HasIndex(f => f.Numero).IsUnique();
+        _ = modelBuilder.Entity<Factura>().HasIndex(f => f.PresupuestoId).IsUnique();
+        _ = modelBuilder.Entity<Numeracion>().HasKey(n => n.Clave);
 
         _ = modelBuilder.Entity<Factura>().Property(f => f.Subtotal).HasColumnType("decimal(18,2)");
         _ = modelBuilder.Entity<Factura>().Property(f => f.Iva).HasColumnType("decimal(18,2)");

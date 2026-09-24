@@ -2,13 +2,32 @@
 
 > Completá este archivo a medida que avanzás. Es parte de la entrega.
 
+## Baseline (Phase 00 — 2026-09-24)
+
+### `dotnet test` (pre-fix)
+
+- Passed: 3 · Failed: 3 · Total: 6  
+- Failures: mixed IVA totals; facturar without stock check; facturar twice without idempotency.
+
+### Swagger Flow 1 (create → list → get by id)
+
+1. **POST** `/api/Presupuestos` (`clienteId: 1`, one line ART-001) → **200**, `id: 1`, `numero: 1`, `estado: "Borrador"`, subtotal 35000, iva 7350, total 42350.  
+2. **GET** `/api/Presupuestos` → **200**, body **`[]`** (empty).  
+3. **GET** `/api/Presupuestos/1` → **200**, same presupuesto as created (`estado: Borrador`).
+
+**Observation:** the entity is persisted and readable by id, but excluded from the list. Root cause hypothesis: create sets `Borrador` while `ListarAsync` filters `Estado != Borrador` (**Bug B2**).
+
+Full matrix: `docs/phases/phase-00-baseline-results.md`.
+
 ## Bugs encontrados (backend)
 
-<!-- Por cada bug: qué pasaba, por qué pasaba, cómo lo arreglaste. -->
+<!-- Por cada bug: qué pasaba, por qué pasaba, cómo lo arreglaste. Update when fixing in Phases 01–03. -->
 
-1.
-2.
-3.
+1. **(B2 — observed)** List empty after create while GET by id works — pending fix in Phase 02.  
+2. **(B1 — tests)** Mixed alícuotas IVA calculated as flat 21% — pending fix in Phase 01.  
+3. **(B4/B5 — tests)** Facturar allows insufficient stock and double invoice — pending fix in Phase 03.  
+4. **(B3 — code review)** Numeración `Count+1` — pending fix in Phase 02.  
+5. **(B6 — code review)** No validation on cantidad/descuento — pending fix in Phase 01.
 
 ## Decisiones del cliente React
 

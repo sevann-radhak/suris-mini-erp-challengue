@@ -3,6 +3,7 @@ import { api } from '../api/client'
 import type { Presupuesto } from '../api/types'
 import { PresupuestoForm } from '../components/PresupuestoForm'
 import { PresupuestoList } from '../components/PresupuestoList'
+import { estaVencido, money } from '../ui/format'
 
 export function PresupuestosPage() {
   const [items, setItems] = useState<Presupuesto[]>([])
@@ -41,13 +42,47 @@ export function PresupuestosPage() {
     }
   }
 
+  const facturados = items.filter((item) => item.estado === 'Facturado')
+  const porFacturar = items.filter((item) => item.estado !== 'Facturado' && !estaVencido(item.fecha, item.validezDias))
+  const montoPendiente = porFacturar.reduce((sum, item) => sum + item.total, 0)
+
   return (
-    <main>
-      <h1>Presupuestos</h1>
+    <div className="shell">
+      <header className="topbar">
+        <div className="brand">
+          <div className="mark">M</div>
+          <div>
+            <p className="eyebrow">Operaciones</p>
+            <h1>Mini ERP</h1>
+          </div>
+        </div>
+      </header>
+      <section className="stats">
+        <div className="stat">
+          <span>Por facturar</span>
+          <strong>{porFacturar.length}</strong>
+        </div>
+        <div className="stat">
+          <span>Facturados</span>
+          <strong>{facturados.length}</strong>
+        </div>
+        <div className="stat">
+          <span>Pendiente</span>
+          <strong>{money.format(montoPendiente)}</strong>
+        </div>
+      </section>
       {error && <p className="banner">{error}</p>}
       {notice && <p className="notice">{notice}</p>}
       <PresupuestoForm onCreated={load} />
-      <PresupuestoList items={items} loading={loading} busyId={busyId} onFacturar={(id) => void facturar(id)} />
-    </main>
+      <section className="card">
+        <div className="card-head">
+          <div>
+            <h2>Presupuestos</h2>
+            <p>Solo se puede facturar lo aprobado, con stock y dentro de la validez.</p>
+          </div>
+        </div>
+        <PresupuestoList items={items} loading={loading} busyId={busyId} onFacturar={(id) => void facturar(id)} />
+      </section>
+    </div>
   )
 }

@@ -1,52 +1,56 @@
 # NOTES
 
-> Completá este archivo a medida que avanzás. Es parte de la entrega.
-
-## Baseline (Phase 00: 2026-09-24)
-
-### `dotnet test` (pre-fix)
-
-- Passed: 3 · Failed: 3 · Total: 6  
-- Failures: mixed IVA totals; facturar without stock check; facturar twice without idempotency.
-
-### Swagger Flow 1 (create → list → get by id)
-
-1. **POST** `/api/Presupuestos` (`clienteId: 1`, one line ART-001) → **200**, `id: 1`, `numero: 1`, `estado: "Borrador"`, subtotal 35000, iva 7350, total 42350.
-2. **GET** `/api/Presupuestos` → **200**, body `[]` (empty).
-3. **GET** `/api/Presupuestos/1` → **200**, same presupuesto as created (`estado: Borrador`).
-
-**Observation:** the entity is persisted and readable by id, but excluded from the list. Root cause hypothesis: create sets `Borrador` while `ListarAsync` filters `Estado != Borrador` (**Bug B2**).
-
-Full matrix: `docs/phases/phase-00-baseline-results.md`.
-
 ## Bugs encontrados (backend)
 
+Baseline antes de corregir: `dotnet test` daba 3 passed y 3 failed (IVA mixto, facturar sin stock, facturar dos veces). En Swagger, un POST creaba el presupuesto en `Borrador` y el GET de la lista volvía vacío.
 
-
-1. **(B2: fixed)** Create set `Borrador` and `ListarAsync` excluded `Borrador`, so GET list was empty after POST. Create now sets `Aprobado` (option A). The list filter stays, so drafts are hidden and a new presupuesto shows up and can be invoiced. `Rechazado` is still listed.
-2. **(B1: fixed)** `CalcularTotales` applied a flat 21% on the summed subtotal (`subtotal * 0.21m`), so mixed rates were wrong (mixed test: expected IVA 231, actual 252). IVA is now calculated per line from `AlicuotaIva`, rounded to 2 decimals with `MidpointRounding.AwayFromZero`, then summed. Line subtotals stay unrounded before the sum. Discount still applies before IVA.
-3. **(B5: fixed)** `FacturarAsync` never checked `Estado`, so a second call invoiced again and subtracted stock twice. It now throws before any stock change when the presupuesto is already `Facturado`.
-4. **(B4: fixed)** Stock was decremented with no availability check, so an over-quantity invoice could go negative. Demand is summed per article and checked against `StockActual` before any decrement; one `SaveChangesAsync` persists stock, factura, and `Facturado` together.
-5. **(B3: fixed)** `ProximoNumeroPresupuestoAsync` used `Count+1`, so a delete reused a number. It now uses `Max(Numero)+1`, same as facturas. Two concurrent creates could still race on SQLite; a sequence or row lock is out of scope for this challenge.
-6. **(B6: fixed)** `CrearAsync` snapshotted price and alícuota and saved without checking line inputs. It now rejects an empty item list, `cantidad <= 0`, and `descuentoPct` outside `[0, 100]` with `InvalidOperationException` (API returns 400 `{ error }`). Checked via API: `cantidad: 0` → "La cantidad debe ser mayor a cero."; `descuentoPct: 150` → "El descuento debe estar entre 0 y 100." Mixed create ART-001 + ART-004 → subtotal 39500, iva 7822.50, total 47322.50.
+1. **IVA (arreglado).** `CalcularTotales` aplicaba 21 % fijo sobre el subtotal sumado (`subtotal * 0.21`). Con alícuotas mezcladas el test esperaba IVA 231 y devolvía 252. Ahora el IVA se calcula por línea según `AlicuotaIva`, se redondea a 2 decimales con `MidpointRounding.AwayFromZero` y recién después se suma. El subtotal de línea no se redondea antes de esa suma. El descuento sigue aplicándose antes del IVA.
+2. **Lista vacía después de crear (arreglado).** El alta guardaba `Borrador` y el listado excluía ese estado, así que el presupuesto existía por id pero no aparecía en la grilla. El alta ahora queda en `Aprobado`. El filtro de borradores se mantiene. `Rechazado` sigue listándose.
+3. **Numeración (arreglado).** El próximo número de presupuesto era `Count + 1`, así que borrar el último reutilizaba un número. Ahora es `Max(Numero) + 1`, igual que las facturas. Número de presupuesto y de factura tienen índice único: si dos altas chocan, la segunda falla en lugar de duplicar.
+4. **Stock (arreglado).** Facturar restaba stock sin mirar el disponible, y podía quedar negativo. La demanda se suma por artículo y se compara con `StockActual` antes de descontar. Un solo `SaveChanges` guarda stock, factura y estado `Facturado`.
+5. **Doble facturación (arreglado).** No se miraba el estado, así que una segunda llamada facturaba de nuevo y descontaba stock otra vez. Si ya está `Facturado`, lanza error antes de tocar el stock.
+6. **Datos inválidos (arreglado).** El alta copiaba precio y alícuota y guardaba sin validar las líneas. Ahora rechaza lista vacía, cantidad menor o igual a cero y descuento fuera de 0–100, con 400 `{ error }`. Cantidad 0 → "La cantidad debe ser mayor a cero." Descuento 150 → "El descuento debe estar entre 0 y 100." ART-001 + ART-004 sin descuento → subtotal 39500, IVA 7822.50, total 47322.50.
 
 
 
 ## Decisiones del cliente React
 
-Cliente en `frontend/`: Vite + React + TypeScript, `fetch` nativo, sin estado global. La URL de la API sale de `VITE_API_BASE_URL` (`http://localhost:5080`).
+El cliente está en `frontend/`: Vite, React y TypeScript, `fetch` nativo, sin estado global. La URL de la API sale de `VITE_API_BASE_URL` (`http://localhost:5080`).
 
-Los totales en vivo viven en `frontend/src/domain/totales.ts` y copian la regla del backend: subtotal de línea `cantidad × precio × (1 − descuento/100)` sin redondear; IVA de línea `round(subtotal × alícuota/100, 2)` con mitad alejándose de cero; después se suman subtotal, IVA y total. El valor que se guarda lo calcula el backend al crear.
+Hay dos vistas. **Presupuestos** concentra el trabajo diario: indicadores, alta y grilla (facturar y duplicar). **Ranking** es el reporte, separado para no mezclarlo con el alta.
 
-
+Los totales en vivo están en `frontend/src/domain/totales.ts` y copian la regla del backend: subtotal de línea `cantidad × precio × (1 − descuento/100)` sin redondear; IVA de línea `round(subtotal × alícuota/100, 2)` con mitad alejándose de cero; después se suman. El valor que se guarda lo calcula el backend al crear.
 
 ## Qué hice y qué dejé afuera
 
+Primero la Parte A y la Parte B. Los seis bugs quedaron corregidos y los tests de la consigna pasan (6/6). El cliente lista, crea con totales en vivo y factura mostrando el error.
 
+Después la Parte C:
+
+- **Duplicar presupuesto:** `POST /api/presupuestos/{id}/duplicar` y el botón Duplicar. Copia cliente, validez, cantidades y descuentos. Número nuevo, fecha de hoy, precio e IVA del artículo actual.
+- **Reporte:** `GET /api/reportes/top-articulos?desde&hasta&top`, en la vista Ranking. Ordena por monto facturado (subtotal de línea más IVA) dentro del rango.
+- **Tests propios:** `StretchTests` cubre la copia con precio actualizado y que el ranking ignore facturas fuera de rango. No modifiqué los tests originales.
+
+Quedó afuera lo que esta consigna no pide: autenticación, paginación en el servidor y un lock de numeración además del índice único.
+
+Las entidades siguen anémicas a propósito. Las reglas están en los servicios. No moví esa lógica a un agregado ni a value objects: los tests oficiales construyen `PresupuestoItem` con decimales y llaman al servicio. Cambiar el modelo ahora no mejora el comportamiento y sí arriesga esos tests.
 
 ## Cómo usé IA
 
+Usé principalmente Cursor en el desarrollo del ejercicio para ubicar los bugs contra los tests, proponer el arreglo y armar el cliente.
 
+Validé lo que coincidía con la consigna y con `dotnet test`: IVA por línea, validación de cantidad y descuento, numeración `Max+1`, alta en `Aprobado`, control de stock, facturación única y el cliente React.
+
+Descarté un CRUD extra, interfaces y repositorios sin un segundo consumidor, y reescribir el descuento cuando el valor se pasa de 100. En facturación, cambiar los `foreach` por `Select` no aportaba; el cambio útil fue leer los artículos en una sola consulta.
+
+Se equivocó al no limpiar el formulario después de crear, al dejar el aviso de éxito dentro de la página (se perdía si no había scroll) y al guardar 10 cuando se tipeaba 101 en el descuento. Eso se corrigió mirando la pantalla.
 
 ## Qué haría con más tiempo / qué falta para producción
+
+- Un agregado `Presupuesto` que concentre facturar, duplicar y la validez, y un value object para el descuento (0–100, hasta dos decimales). Hoy eso está en los servicios porque el modelo público lo usan los tests.
+- Autenticación y autorización por rol.
+- Paginación en el servidor cuando la lista no entre en memoria.
+- Una secuencia para la numeración, además del índice único, para no depender del error de la base si dos altas ocurren juntas.
+- Tests de extremo a extremo del cliente y un pipeline de CI.
+- Migraciones de EF en lugar de `EnsureCreated`.
 

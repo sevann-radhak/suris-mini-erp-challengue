@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using MiniErp.Api.Dtos;
+using MiniErp.Core.Models;
 using MiniErp.Core.Services;
 
 namespace MiniErp.Api.Controllers;
@@ -13,9 +14,9 @@ public class ClientesController(ClienteService service) : ControllerBase
     [HttpGet]
     public async Task<ActionResult<List<ClienteDto>>> Listar()
     {
-        var clientes = await _service.ListarAsync();
-        var lista = clientes
-            .Select(cliente => new 
+        List<Cliente> clientes = await _service.ListarAsync();
+        List<ClienteDto> lista = clientes
+            .Select(cliente => new
                 ClienteDto(cliente.Id, cliente.RazonSocial, cliente.Cuit, cliente.CondicionIva.ToString()))
             .ToList();
 

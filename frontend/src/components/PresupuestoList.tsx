@@ -6,12 +6,14 @@ interface Props {
   items: Presupuesto[]
   loading: boolean
   busyId: number | null
+  duplicatingId: number | null
   onFacturar: (id: number) => void
+  onDuplicar: (id: number) => void
 }
 
 const pageSizes = [10, 20, 50, 100]
 
-export function PresupuestoList({ items, loading, busyId, onFacturar }: Props) {
+export function PresupuestoList({ items, loading, busyId, duplicatingId, onFacturar, onDuplicar }: Props) {
   const [pageSize, setPageSize] = useState(10)
   const [pageIndex, setPageIndex] = useState(0)
   const pageCount = Math.max(1, Math.ceil(items.length / pageSize))
@@ -66,6 +68,14 @@ export function PresupuestoList({ items, loading, busyId, onFacturar }: Props) {
                 <td className="num hide-sm">{money.format(item.iva)}</td>
                 <td className="num codigo">{money.format(item.total)}</td>
                 <td className="actions">
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    disabled={duplicatingId === item.id}
+                    onClick={() => onDuplicar(item.id)}
+                  >
+                    {duplicatingId === item.id ? 'Duplicando…' : 'Duplicar'}
+                  </button>
                   <button
                     type="button"
                     className="btn btn-primary"

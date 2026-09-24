@@ -36,6 +36,12 @@ public class PresupuestoService(AppDbContext db, NumeracionService numeracion)
         return item.Cantidad * item.PrecioUnitario * (1 - (item.DescuentoPct / 100m));
     }
 
+    public static decimal MontoLinea(PresupuestoItem item)
+    {
+        decimal subtotal = SubtotalLinea(item);
+        return subtotal + IvaLinea(subtotal, item.AlicuotaIva);
+    }
+
     private static decimal IvaLinea(decimal subtotalLinea, decimal alicuotaIva)
     {
         return Math.Round(subtotalLinea * alicuotaIva / 100m, 2, MidpointRounding.AwayFromZero);
@@ -100,6 +106,21 @@ public class PresupuestoService(AppDbContext db, NumeracionService numeracion)
         _ = _db.Presupuestos.Add(presupuesto);
         _ = await _db.SaveChangesAsync();
         return presupuesto;
+    }
+
+    public async Task<Presupuesto> DuplicarAsync(int id)
+    {
+        Presupuesto origen = await ObtenerAsync(id)
+            ?? throw new NotFoundException("El presupuesto no existe.");
+
+        List<PresupuestoItem> items = origen.Items.Select(item => new PresupuestoItem
+        {
+            ArticuloId = item.ArticuloId,
+            Cantidad = item.Cantidad,
+            DescuentoPct = item.DescuentoPct
+        }).ToList();
+
+        return await CrearAsync(origen.ClienteId, origen.ValidezDias, items);
     }
 
     public async Task<Presupuesto?> ObtenerAsync(int id)

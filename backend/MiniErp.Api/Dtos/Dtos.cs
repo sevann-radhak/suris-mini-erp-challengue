@@ -46,6 +46,12 @@ public record FacturaDto(
     decimal Iva,
     decimal Total);
 
+public record ArticuloRankeadoDto(
+    int ArticuloId,
+    string Codigo,
+    string Descripcion,
+    decimal Monto);
+
 public record ClienteDto(
     int Id,
     string RazonSocial,

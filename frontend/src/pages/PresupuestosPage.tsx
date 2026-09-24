@@ -17,6 +17,7 @@ export function PresupuestosPage() {
   const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState<ToastMessage | null>(null)
   const [busyId, setBusyId] = useState<number | null>(null)
+  const [duplicatingId, setDuplicatingId] = useState<number | null>(null)
 
   const dismiss = useCallback(() => setToast(null), [])
 
@@ -64,21 +65,25 @@ export function PresupuestosPage() {
     }
   }
 
+  async function duplicar(id: number) {
+    setDuplicatingId(id)
+    try {
+      await api(`/api/presupuestos/${id}/duplicar`, { method: 'POST' })
+      notify('Presupuesto duplicado.', 'ok')
+      load()
+    } catch (err: unknown) {
+      notify(errorMessage(err, 'No se pudo duplicar.'), 'danger')
+    } finally {
+      setDuplicatingId(null)
+    }
+  }
+
   const facturados = items.filter((item) => item.estado === 'Facturado')
   const porFacturar = items.filter((item) => item.estado !== 'Facturado' && !estaVencido(item.fecha, item.validezDias))
   const montoPendiente = porFacturar.reduce((sum, item) => sum + item.total, 0)
 
   return (
-    <div className="shell">
-      <header className="topbar">
-        <div className="brand">
-          <div className="mark">M</div>
-          <div>
-            <p className="eyebrow">Operaciones</p>
-            <h1>Mini ERP</h1>
-          </div>
-        </div>
-      </header>
+    <>
       <section className="stats">
         <div className="stat">
           <span>Por facturar</span>
@@ -107,8 +112,15 @@ export function PresupuestosPage() {
             <p>Solo se puede facturar lo aprobado, con stock y dentro de la validez.</p>
           </div>
         </div>
-        <PresupuestoList items={items} loading={loading} busyId={busyId} onFacturar={(id) => void facturar(id)} />
+        <PresupuestoList
+          items={items}
+          loading={loading}
+          busyId={busyId}
+          duplicatingId={duplicatingId}
+          onFacturar={(id) => void facturar(id)}
+          onDuplicar={(id) => void duplicar(id)}
+        />
       </section>
-    </div>
+    </>
   )
 }

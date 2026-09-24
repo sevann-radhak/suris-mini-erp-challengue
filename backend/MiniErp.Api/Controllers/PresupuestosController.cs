@@ -53,6 +53,25 @@ public class PresupuestosController(PresupuestoService service) : ControllerBase
         }
     }
 
+    [HttpPost("{id:int}/duplicar")]
+    public async Task<ActionResult<PresupuestoDto>> Duplicar(int id)
+    {
+        try
+        {
+            Presupuesto creado = await _service.DuplicarAsync(id);
+            Presupuesto? completo = await _service.ObtenerAsync(creado.Id);
+            return Ok(MapToDto(completo!));
+        }
+        catch (NotFoundException ex)
+        {
+            return NotFound(new { error = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
+
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Eliminar(int id)
     {

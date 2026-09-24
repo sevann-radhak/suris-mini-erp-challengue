@@ -9,8 +9,8 @@ public class FacturacionService
     private readonly AppDbContext _db;
     private readonly NumeracionService _numeracion;
 
-    public FacturacionService(AppDbContext db, 
-        PresupuestoService presupuestos, 
+    public FacturacionService(AppDbContext db,
+        PresupuestoService presupuestos,
         NumeracionService numeracion)
     {
         _db = db;

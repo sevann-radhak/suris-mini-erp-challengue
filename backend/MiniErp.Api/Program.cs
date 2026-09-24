@@ -12,6 +12,7 @@ builder.Services.AddScoped<PresupuestoService>();
 builder.Services.AddScoped<FacturacionService>();
 builder.Services.AddScoped<ArticuloService>();
 builder.Services.AddScoped<ClienteService>();
+builder.Services.AddScoped<ReporteService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

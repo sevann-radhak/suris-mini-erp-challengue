@@ -24,7 +24,7 @@ Full matrix: `docs/phases/phase-00-baseline-results.md`.
 <!-- Por cada bug: qué pasaba, por qué pasaba, cómo lo arreglaste. Update when fixing in Phases 01–03. -->
 
 1. **(B2 — observed)** List empty after create while GET by id works — pending fix in Phase 02.  
-2. **(B1 — tests)** Mixed alícuotas IVA calculated as flat 21% — pending fix in Phase 01.  
+2. **(B1 — fixed)** `CalcularTotales` applied a flat 21% on the summed subtotal (`subtotal * 0.21m`), so mixed rates were wrong (mixed test: expected IVA 231, actual 252). IVA is now calculated per line from `AlicuotaIva`, rounded to 2 decimals with `MidpointRounding.AwayFromZero`, then summed. Line subtotals stay unrounded before the sum. Discount still applies before IVA.  
 3. **(B4/B5 — tests)** Facturar allows insufficient stock and double invoice — pending fix in Phase 03.  
 4. **(B3 — code review)** Numeración `Count+1` — pending fix in Phase 02.  
 5. **(B6 — code review)** No validation on cantidad/descuento — pending fix in Phase 01.

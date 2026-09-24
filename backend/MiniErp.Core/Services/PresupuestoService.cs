@@ -19,22 +19,28 @@ public class PresupuestoService
 
     /// <summary>
     /// Calcula subtotal, IVA y total de un presupuesto. El descuento se aplica
-    /// por linea antes del IVA.
+    /// por linea antes del IVA. El IVA se calcula por linea segun AlicuotaIva
+    /// y se redondea a 2 decimales antes de sumar.
     /// </summary>
     public Totales CalcularTotales(Presupuesto presupuesto)
     {
         decimal subtotal = 0m;
+        decimal iva = 0m;
         foreach (var item in presupuesto.Items)
         {
-            var subtotalLinea = item.Cantidad * item.PrecioUnitario * (1 - item.DescuentoPct / 100m);
+            var subtotalLinea = SubtotalLinea(item);
             subtotal += subtotalLinea;
+            iva += IvaLinea(subtotalLinea, item.AlicuotaIva);
         }
 
-        var iva = subtotal * 0.21m;
-        var total = subtotal + iva;
-
-        return new Totales(subtotal, iva, total);
+        return new Totales(subtotal, iva, subtotal + iva);
     }
+
+    private static decimal SubtotalLinea(PresupuestoItem item)
+        => item.Cantidad * item.PrecioUnitario * (1 - item.DescuentoPct / 100m);
+
+    private static decimal IvaLinea(decimal subtotalLinea, decimal alicuotaIva)
+        => Math.Round(subtotalLinea * alicuotaIva / 100m, 2, MidpointRounding.AwayFromZero);
 
     public async Task<Presupuesto> CrearAsync(int clienteId, int validezDias, List<PresupuestoItem> items)
     {

@@ -43,3 +43,54 @@ td:nth-child(n + 5) {
   padding: 0.6rem 0.8rem;
   border-radius: 6px;
 }
+
+form,
+.search {
+  background: white;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid #e7e5e4;
+  border-radius: 8px;
+}
+
+.row,
+.search {
+  display: flex;
+  gap: 1rem;
+  align-items: end;
+  flex-wrap: wrap;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+}
+
+input,
+select,
+button {
+  font: inherit;
+  padding: 0.35rem 0.5rem;
+}
+
+.search ul {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+  width: 100%;
+}
+
+.search li button {
+  width: 100%;
+  text-align: left;
+}
+
+.totales {
+  font-weight: 600;
+}
+
+input[type='number'] {
+  width: 5rem;
+}
